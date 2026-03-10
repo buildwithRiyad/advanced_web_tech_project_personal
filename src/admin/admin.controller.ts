@@ -1,54 +1,74 @@
-import { Controller, Post, Get, Put, Patch, Delete, Body, Param, Query } from '@nestjs/common';
+import { Controller, Post, Get, Put, Patch, Delete, Body, Param, Query, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { join } from 'path';
 import { AdminService } from './admin.service';
 import { CreateUserDto, UpdateUserDto, AssignRoleDto } from './dto/admin.dto';
+import { Admin_pipe } from './pipes/admin_pipe.pipe';
 
-@Controller('admin') // Base Route: /admin
+
+@Controller('admin') 
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
-  // Create new user
-  @Post()
-  create(@Body() dto: CreateUserDto) {
-    return this.adminService.create(dto);
-  }
+ @Post()
+@UseInterceptors(FileInterceptor('nidImage', {
+  storage: diskStorage({
+    destination: join(process.cwd(), 'uploads/nid'),
+    filename: (_req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      const ext = file.originalname.split('.').pop();
+      cb(null, `nid-${uniqueSuffix}.${ext}`);
+    },
+  }),
+  limits: { fileSize: 2 * 1024 * 1024 }, 
+  fileFilter: (_req, file, cb) => {
+    ['image/jpeg', 'image/png'].includes(file.mimetype)
+      ? cb(null, true)
+      : cb(new BadRequestException('Only JPEG/PNG allowed'), false);
+  },
+}))
+create(@Body(Admin_pipe) dto: CreateUserDto, @UploadedFile() nidImage?: Express.Multer.File) {
+  return this.adminService.create(dto, nidImage);
+}
 
-  //Get all users (optional role filter)
+  
   @Get()
   findAll(@Query('role') role: string) {
     return this.adminService.findAll(role);
   }
 
-  // Get single user by id
+  
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.adminService.findOne(id);
   }
 
-  //  Update full user data
+  
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+  update(@Param('id') id: string, @Body(Admin_pipe) dto: UpdateUserDto) {
     return this.adminService.update(id, dto);
   }
 
-  //Update only user role
+
   @Patch(':id/role')
-  assignRole(@Param('id') id: string, @Body() dto: AssignRoleDto) {
+  assignRole(@Param('id') id: string, @Body(Admin_pipe) dto: AssignRoleDto) {
     return this.adminService.assignRole(id, dto);
   }
 
-  // Delete user
+  
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.adminService.remove(id);
   }
 
-  //  Get system logs
+  
   @Get('logs/all')
   logs() {
     return this.adminService.logs();
   }
 
-  //system backup
+
   @Post('backup')
   backup() {
     return this.adminService.backup();
