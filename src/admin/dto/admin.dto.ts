@@ -3,14 +3,14 @@ import { IsString, IsEmail, IsIn, IsNotEmpty, Matches, IsOptional } from 'class-
 export class CreateUserDto {
   @IsNotEmpty()
   @Matches(/^[A-Za-z\s]+$/, { message: 'Name must contain alphabets only' })
-  name: string;
+  name!: string;
 
 
 
 
  @IsNotEmpty()
   @IsEmail({}, { message: 'Email must be a valid email address' })
-  email: string;
+  email!: string;
 
 
 
@@ -18,14 +18,14 @@ export class CreateUserDto {
   @IsNotEmpty()
  @Matches(/^[A-Za-z0-9_@]{8,}$/, { 
   message: 'Password must be at least 8 characters and contain only letters, numbers, underscore (_) or @' })
-  password: string;
+  password!: string;
 
-  @IsIn(['manager', 'receptionist'])
-  role: 'manager' | 'receptionist';
+  @IsIn(['manager', 'receptionist', 'customer'])
+  role!: 'manager' | 'receptionist' | 'customer';
 
   @IsNotEmpty()
   @Matches(/^\d{13}$|^\d{17}$/, { message: 'iNVALID' })
-  nidNumber: string;
+  nidNumber!: string;
 }
 
 export class UpdateUserDto {
@@ -43,8 +43,8 @@ export class UpdateUserDto {
   password?: string;
 
   @IsOptional()
-  @IsIn(['manager', 'receptionist'])
-  role?: 'manager' | 'receptionist';
+  @IsIn(['manager', 'receptionist', 'customer'])
+  role?: 'manager' | 'receptionist' | 'customer';
 
   @IsOptional()
   @Matches(/^\d{13}$|^\d{17}$/, { message: 'NID must be 13 or 17 digits' })
@@ -53,6 +53,6 @@ export class UpdateUserDto {
 
 export class AssignRoleDto {
   @IsNotEmpty()
-  @IsIn(['manager', 'receptionist'])
-  role: 'manager' | 'receptionist';
+  @IsIn(['manager', 'receptionist', 'customer'])
+  role!: 'manager' | 'receptionist' | 'customer';
 }

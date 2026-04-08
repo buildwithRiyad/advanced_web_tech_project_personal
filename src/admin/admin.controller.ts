@@ -4,6 +4,10 @@ import { diskStorage } from 'multer';
 import { join } from 'path';
 import { AdminService } from './admin.service';
 import { CreateUserDto, UpdateUserDto, AssignRoleDto } from './dto/admin.dto';
+import { CreateProfileDto } from './dto/create-profile.dto';
+import { CreateBookingDto } from './dto/create-booking.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateBookingDto } from './dto/update-booking.dto';
 import { Admin_pipe } from './pipes/admin_pipe.pipe';
 
 
@@ -13,20 +17,54 @@ export class AdminController {
 
 
   @Post(':id/profile')
-createProfile(@Param('id') id:string){
-return this.adminService.findOne(id)
+createProfile(@Param('id') id: string, @Body(Admin_pipe) dto: CreateProfileDto) {
+return this.adminService.createProfile(id, dto)
+}
+
+  @Get(':id/profile')
+getProfile(@Param('id') id: string) {
+return this.adminService.getProfile(id)
+}
+
+  @Put(':id/profile')
+updateProfile(@Param('id') id: string, @Body(Admin_pipe) dto: UpdateProfileDto) {
+return this.adminService.updateProfile(id, dto)
+}
+
+  @Delete(':id/profile')
+removeProfile(@Param('id') id: string) {
+return this.adminService.removeProfile(id)
 }
 
 
-@Post(':id/booking')
-createBooking(@Param('id') id:string){
-return this.adminService.createBooking(id)
+@Post(':id/bookings')
+createBooking(@Param('id') id: string, @Body(Admin_pipe) dto: CreateBookingDto) {
+return this.adminService.createBooking(id, dto)
 }
 
 
-@Get(':id/booking')
-getBooking(@Param('id') id:string){
-return this.adminService.findOne(id)
+@Get(':id/bookings')
+getBookings(@Param('id') id: string) {
+return this.adminService.getBookings(id)
+}
+
+@Get(':id/bookings/:bookingId')
+getBooking(@Param('id') id: string, @Param('bookingId') bookingId: string) {
+return this.adminService.getBooking(id, bookingId)
+}
+
+@Put(':id/bookings/:bookingId')
+updateBooking(
+  @Param('id') id: string,
+  @Param('bookingId') bookingId: string,
+  @Body(Admin_pipe) dto: UpdateBookingDto,
+) {
+return this.adminService.updateBooking(id, bookingId, dto)
+}
+
+@Delete(':id/bookings/:bookingId')
+removeBooking(@Param('id') id: string, @Param('bookingId') bookingId: string) {
+return this.adminService.removeBooking(id, bookingId)
 }
 
  @Post()
