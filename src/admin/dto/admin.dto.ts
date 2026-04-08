@@ -8,9 +8,8 @@ export class CreateUserDto {
 
 
 
-  @IsNotEmpty()
-  @IsEmail({}, { message: 'Email must contain @' })
-  @Matches(/\.xyz$/i, { message: 'Email domain must be .xyz' })
+ @IsNotEmpty()
+  @IsEmail({}, { message: 'Email must be a valid email address' })
   email: string;
 
 
@@ -34,11 +33,11 @@ export class UpdateUserDto {
   @Matches(/^[A-Za-z\s]+$/, { message: 'Name must contain alphabets only' })
   name?: string;
 
-  @IsOptional()
-  @IsEmail()
-  @Matches(/\.xyz$/i, { message: 'Email domain must be .xyz' })
+   @IsOptional()
+  @IsEmail({}, { message: 'Email must be a valid email address' })
   email?: string;
 
+  
   @IsOptional()
   @Matches(/^[A-Za-z0-9_@]{8,}$/, { message: 'Password must be at least 8 characters and contain only letters (A-Z, a-z), numbers (0-9), underscore (_) or @' })
   password?: string;

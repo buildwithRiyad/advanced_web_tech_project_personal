@@ -11,6 +11,24 @@ import { Admin_pipe } from './pipes/admin_pipe.pipe';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
+
+  @Post(':id/profile')
+createProfile(@Param('id') id:string){
+return this.adminService.findOne(id)
+}
+
+
+@Post(':id/booking')
+createBooking(@Param('id') id:string){
+return this.adminService.createBooking(id)
+}
+
+
+@Get(':id/booking')
+getBooking(@Param('id') id:string){
+return this.adminService.findOne(id)
+}
+
  @Post()
 @UseInterceptors(FileInterceptor('nidImage', {
   storage: diskStorage({
