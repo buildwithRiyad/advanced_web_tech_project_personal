@@ -6,9 +6,10 @@ import {TypeOrmModule} from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Profile } from './entities/profile.entity';
 import { Booking } from './entities/booking.entity';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
-  imports:[TypeOrmModule.forFeature([User,Profile,Booking])],
+  imports:[TypeOrmModule.forFeature([User,Profile,Booking]), AuthModule],
   controllers: [AdminController],
   providers: [AdminService, Admin_pipe],
 })
