@@ -15,6 +15,6 @@ export class Booking {
   @Column()
   checkOut!: string;
 
-  @ManyToOne(() => User, user => user.bookings)
+  @ManyToOne(() => User)
   user!: User;
 }

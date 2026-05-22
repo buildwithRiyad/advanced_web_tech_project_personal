@@ -5,26 +5,22 @@ export class CreateUserDto {
   @Matches(/^[A-Za-z\s]+$/, { message: 'Name must contain alphabets only' })
   name!: string;
 
-
-
-
- @IsNotEmpty()
+  @IsNotEmpty()
   @IsEmail({}, { message: 'Email must be a valid email address' })
   email!: string;
 
-
-
-
   @IsNotEmpty()
- @Matches(/^[A-Za-z0-9_@]{8,}$/, { 
-  message: 'Password must be at least 8 characters and contain only letters, numbers, underscore (_) or @' })
+  @Matches(/^[A-Za-z0-9_@]{8,}$/, { 
+    message: 'Password must be at least 8 characters and contain only letters, numbers, underscore (_) or @' 
+  })
   password!: string;
 
-  @IsIn(['manager', 'receptionist', 'customer'])
-  role!: 'manager' | 'receptionist' | 'customer';
+  // ✅ ADD 'admin' here
+  @IsIn(['admin', 'manager', 'receptionist', 'customer'])
+  role!: 'admin' | 'manager' | 'receptionist' | 'customer';
 
   @IsNotEmpty()
-  @Matches(/^\d{13}$|^\d{17}$/, { message: 'iNVALID' })
+  @Matches(/^\d{13}$|^\d{17}$/, { message: 'NID must be 13 or 17 digits' })
   nidNumber!: string;
 }
 
@@ -33,18 +29,20 @@ export class UpdateUserDto {
   @Matches(/^[A-Za-z\s]+$/, { message: 'Name must contain alphabets only' })
   name?: string;
 
-   @IsOptional()
+  @IsOptional()
   @IsEmail({}, { message: 'Email must be a valid email address' })
   email?: string;
 
-  
   @IsOptional()
-  @Matches(/^[A-Za-z0-9_@]{8,}$/, { message: 'Password must be at least 8 characters and contain only letters (A-Z, a-z), numbers (0-9), underscore (_) or @' })
+  @Matches(/^[A-Za-z0-9_@]{8,}$/, { 
+    message: 'Password must be at least 8 characters and contain only letters, numbers, underscore (_) or @' 
+  })
   password?: string;
 
+  // ✅ ADD 'admin' here
   @IsOptional()
-  @IsIn(['manager', 'receptionist', 'customer'])
-  role?: 'manager' | 'receptionist' | 'customer';
+  @IsIn(['admin', 'manager', 'receptionist', 'customer'])
+  role?: 'admin' | 'manager' | 'receptionist' | 'customer';
 
   @IsOptional()
   @Matches(/^\d{13}$|^\d{17}$/, { message: 'NID must be 13 or 17 digits' })
@@ -53,6 +51,7 @@ export class UpdateUserDto {
 
 export class AssignRoleDto {
   @IsNotEmpty()
-  @IsIn(['manager', 'receptionist', 'customer'])
-  role!: 'manager' | 'receptionist' | 'customer';
+  // ✅ ADD 'admin' here
+  @IsIn(['admin', 'manager', 'receptionist', 'customer'])
+  role!: 'admin' | 'manager' | 'receptionist' | 'customer';
 }

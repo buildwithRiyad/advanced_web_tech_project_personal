@@ -1,9 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AdminService } from './admin.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { User } from './entities/user.entity';
-import { Profile } from './entities/profile.entity';
-import { Booking } from './entities/booking.entity';
 
 describe('AdminService', () => {
   let service: AdminService;
@@ -13,8 +12,7 @@ describe('AdminService', () => {
       providers: [
         AdminService,
         { provide: getRepositoryToken(User), useValue: {} },
-        { provide: getRepositoryToken(Profile), useValue: {} },
-        { provide: getRepositoryToken(Booking), useValue: {} },
+        { provide: DataSource, useValue: { query: jest.fn() } },
       ],
     }).compile();
 

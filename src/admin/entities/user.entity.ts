@@ -1,6 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, OneToMany, JoinColumn } from 'typeorm';
-import { Profile } from './profile.entity';
-import { Booking } from './booking.entity';
+import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
 @Entity()
 export class User {
@@ -22,15 +20,6 @@ export class User {
   @Column()
   nidNumber!: string;
 
-  @Column({ nullable: true })
-  nidImage!: string;
-
-  // One-to-One with Profile
-  @OneToOne(() => Profile, profile => profile.user, { cascade: true })
-  @JoinColumn()
-  profile!: Profile;
-
-  // One-to-Many with Booking
-  @OneToMany(() => Booking, booking => booking.user)
-  bookings!: Booking[];
+  @Column({ type: 'text', nullable: true })
+  nidImage!: string | null;
 }

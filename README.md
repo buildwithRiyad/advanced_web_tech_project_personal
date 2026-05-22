@@ -25,6 +25,12 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Admin Role
+
+Admin is the technical/system operator for the hotel application. Admin can add, edit, and delete users, assign roles, review system activity, and manage backup or restore tasks when needed. This role is for system control only, not business operations such as booking decisions, payment handling, or room pricing.
+
+Relation-wise, admin affects managers and receptionists directly because admin controls access, roles, and system records.
+
 ## Project setup
 
 ```bash

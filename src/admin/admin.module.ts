@@ -4,13 +4,12 @@ import { AdminService } from './admin.service';
 import { Admin_pipe } from './pipes/admin_pipe.pipe';
 import {TypeOrmModule} from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { Profile } from './entities/profile.entity';
-import { Booking } from './entities/booking.entity';
 import { AuthModule } from './auth/auth.module';
+import { PusherService } from './pusher.service';
 
 @Module({
-  imports:[TypeOrmModule.forFeature([User,Profile,Booking]), AuthModule],
+  imports:[TypeOrmModule.forFeature([User]), AuthModule],
   controllers: [AdminController],
-  providers: [AdminService, Admin_pipe],
+  providers: [AdminService, Admin_pipe, PusherService],
 })
 export class AdminModule {}

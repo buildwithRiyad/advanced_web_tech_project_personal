@@ -3,26 +3,68 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
-import { Profile } from './entities/profile.entity';
-import { Booking } from './entities/booking.entity';
 import { CreateUserDto, UpdateUserDto, AssignRoleDto } from './dto/admin.dto';
-import { CreateProfileDto } from './dto/create-profile.dto';
-import { CreateBookingDto } from './dto/create-booking.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
-import { UpdateBookingDto } from './dto/update-booking.dto';
+import { PusherService } from './pusher.service';
+
+type ActivityLog = {
+  timestamp: string;
+  action: string;
+  target?: string;
+  details?: string;
+};
+
+type RestoreBody = {
+  snapshot?: {
+    users?: User[];
+    logs?: ActivityLog[];
+  };
+};
 
 @Injectable()
-export class AdminService {
+export class AdminService implements OnModuleInit {   // ✅ implement OnModuleInit
+  private readonly activityLogs: ActivityLog[] = [];
+
   constructor(
     @InjectRepository(User) private userRepo: Repository<User>,
-    @InjectRepository(Profile) private profileRepo: Repository<Profile>,
-    @InjectRepository(Booking) private bookingRepo: Repository<Booking>,
+    private readonly dataSource: DataSource,
+    private readonly pusherService: PusherService,
   ) {}
+
+  // ========== SEED FIRST ADMIN (runs once when module starts) ==========
+  async onModuleInit() {
+    await this.seedFirstAdmin();
+  }
+
+  private async seedFirstAdmin() {
+    const existingAdmin = await this.userRepo.findOne({
+      where: { role: 'admin' },
+    });
+    if (!existingAdmin) {
+      const hashedPassword = await bcrypt.hash('admin', 10);
+      const firstAdmin = this.userRepo.create({
+        name: 'admin',
+        email: 'admin@gmail.com',
+        password: hashedPassword,
+        role: 'admin',
+        nidNumber: '0000000000000',    // dummy 13-digit NID
+        nidImage: null,
+      });
+      await this.userRepo.save(firstAdmin);
+      this.recordLog('system.first_admin_created', 'system', 'admin@gmail.com');
+      await this.pusherService.notifyAdmin('Default admin created', {
+        type: 'admin.seeded',
+        email: 'admin@gmail.com',
+      });
+      console.log('✅ Default admin created: admin@gmail.com / admin');
+    }
+  }
 
   // ------------- UTILITY -------------
   private parseIdOrThrow(value: string, field: string): number {
@@ -32,9 +74,40 @@ export class AdminService {
     return id;
   }
 
+  private recordLog(action: string, target?: string, details?: string) {
+    this.activityLogs.unshift({
+      timestamp: new Date().toISOString(),
+      action,
+      target,
+      details,
+    });
+  }
+
   // ------------- USERS -------------
+  /** Register a new admin account */
+  async registerAdmin(dto: CreateUserDto) {
+    if (await this.userRepo.findOne({ where: { email: dto.email } }))
+      throw new ConflictException(`Email ${dto.email} exists`);
+
+    const admin = this.userRepo.create({
+      ...dto,
+      password: await bcrypt.hash(dto.password, 10),
+      nidImage: null,
+    });
+
+    const savedAdmin = await this.userRepo.save(admin);
+    this.recordLog('admin.registered', `admin:${savedAdmin.id}`, savedAdmin.email);
+    await this.pusherService.notifyAdmin('Admin registered', {
+      type: 'admin.registered',
+      userId: savedAdmin.id,
+      email: savedAdmin.email,
+    });
+    return savedAdmin;
+  }
+
   /** Create user w/ hashed password & optional NID image */
   async create(dto: CreateUserDto, nidImage?: Express.Multer.File) {
+    // Check for duplicate email
     if (await this.userRepo.findOne({ where: { email: dto.email } }))
       throw new ConflictException(`Email ${dto.email} exists`);
 
@@ -43,14 +116,20 @@ export class AdminService {
       password: await bcrypt.hash(dto.password, 10),
       nidImage: nidImage?.filename,
     });
-    return this.userRepo.save(user);
+    const savedUser = await this.userRepo.save(user);
+    this.recordLog('user.created', `user:${savedUser.id}`, savedUser.email);
+    await this.pusherService.notifyAdmin('User created', {
+      type: 'user.created',
+      userId: savedUser.id,
+      email: savedUser.email,
+    });
+    return savedUser;
   }
 
   /** Get all users, optional role filter */
   async findAll(role?: string) {
     return this.userRepo.find({
       where: role ? { role } : {},
-      relations: ['profile', 'bookings'],
     });
   }
 
@@ -58,7 +137,6 @@ export class AdminService {
   async findOne(id: string) {
     const user = await this.userRepo.findOne({
       where: { id: this.parseIdOrThrow(id, 'id') },
-      relations: ['profile', 'bookings'],
     });
     if (!user) throw new NotFoundException(`User ID ${id} not found`);
     return user;
@@ -69,107 +147,85 @@ export class AdminService {
     const user = await this.findOne(id);
     if (dto.password) dto.password = await bcrypt.hash(dto.password, 10);
     Object.assign(user, dto);
-    return this.userRepo.save(user);
+    const savedUser = await this.userRepo.save(user);
+    this.recordLog('user.updated', `user:${savedUser.id}`);
+    await this.pusherService.notifyAdmin('User updated', {
+      type: 'user.updated',
+      userId: savedUser.id,
+    });
+    return savedUser;
   }
 
   /** Assign role to user */
   async assignRole(id: string, dto: AssignRoleDto) {
     const user = await this.findOne(id);
     user.role = dto.role;
-    return this.userRepo.save(user);
+    const savedUser = await this.userRepo.save(user);
+    this.recordLog('user.role_assigned', `user:${savedUser.id}`, dto.role);
+    await this.pusherService.notifyAdmin('Role assigned', {
+      type: 'user.role_assigned',
+      userId: savedUser.id,
+      role: dto.role,
+    });
+    return savedUser;
   }
 
   /** Delete user */
   async remove(id: string) {
     const user = await this.findOne(id);
     await this.userRepo.remove(user);
+    this.recordLog('user.deleted', `user:${id}`);
+    await this.pusherService.notifyAdmin('User deleted', {
+      type: 'user.deleted',
+      userId: id,
+    });
     return { message: 'deleted' };
-  }
-
-  // ------------- PROFILE (One-to-One) -------------
-  /** Create profile for user */
-  async createProfile(id: string, dto: CreateProfileDto) {
-    const user = await this.findOne(id);
-    if (await this.profileRepo.findOne({ where: { user: { id: user.id } } }))
-      throw new ConflictException(`Profile exists for user ID ${id}`);
-    return this.profileRepo.save(this.profileRepo.create({ ...dto, user }));
-  }
-
-  /** Get profile */
-  async getProfile(id: string) {
-    const profile = await this.profileRepo.findOne({
-      where: { user: { id: this.parseIdOrThrow(id, 'id') } },
-      relations: ['user'],
-    });
-    if (!profile) throw new NotFoundException(`Profile for user ID ${id} not found`);
-    return profile;
-  }
-
-  /** Update profile */
-  async updateProfile(id: string, dto: UpdateProfileDto) {
-    const profile = await this.getProfile(id);
-    Object.assign(profile, dto);
-    return this.profileRepo.save(profile);
-  }
-
-  /** Delete profile */
-  async removeProfile(id: string) {
-    const profile = await this.getProfile(id);
-    await this.profileRepo.remove(profile);
-    return { message: `Profile for user ID ${id} deleted` };
-  }
-
-  // ------------- BOOKINGS (One-to-Many) -------------
-  /** Create booking */
-  async createBooking(id: string, dto: CreateBookingDto) {
-    const user = await this.findOne(id);
-    return this.bookingRepo.save(this.bookingRepo.create({ ...dto, user }));
-  }
-
-  /** Get all bookings for a user */
-  async getBookings(id: string) {
-    await this.findOne(id);
-    return this.bookingRepo.find({
-      where: { user: { id: this.parseIdOrThrow(id, 'id') } },
-      relations: ['user'],
-      order: { id: 'DESC' },
-    });
-  }
-
-  /** Get single booking */
-  async getBooking(id: string, bookingId: string) {
-    const booking = await this.bookingRepo.findOne({
-      where: {
-        id: this.parseIdOrThrow(bookingId, 'bookingId'),
-        user: { id: this.parseIdOrThrow(id, 'id') },
-      },
-      relations: ['user'],
-    });
-    if (!booking)
-      throw new NotFoundException(`Booking ID ${bookingId} not found for user ID ${id}`);
-    return booking;
-  }
-
-  /** Update booking */
-  async updateBooking(id: string, bookingId: string, dto: UpdateBookingDto) {
-    const booking = await this.getBooking(id, bookingId);
-    Object.assign(booking, dto);
-    return this.bookingRepo.save(booking);
-  }
-
-  /** Delete booking */
-  async removeBooking(id: string, bookingId: string) {
-    const booking = await this.getBooking(id, bookingId);
-    await this.bookingRepo.remove(booking);
-    return { message: `Booking ID ${bookingId} deleted for user ID ${id}` };
   }
 
   // ------------- LOGS / BACKUP -------------
   logs() {
-    return []; // temporary
+    return this.activityLogs;
   }
 
-  backup() {
-    return { message: 'backup done' };
+  async backup() {
+    const users = await this.userRepo.find();
+    this.recordLog('system.backup_created', 'system');
+    await this.pusherService.notifyAdmin('Backup created', {
+      type: 'system.backup_created',
+      userCount: users.length,
+    });
+    return {
+      message: 'backup done',
+      snapshot: {
+        users,
+        logs: this.activityLogs,
+      },
+    };
+  }
+
+  async restore(body: RestoreBody) {
+    const users = body?.snapshot?.users;
+
+    if (!Array.isArray(users)) {
+      throw new BadRequestException('snapshot.users is required');
+    }
+
+    await this.dataSource.query('TRUNCATE TABLE "user" RESTART IDENTITY CASCADE');
+    const restoredUsers = await this.userRepo.save(users);
+
+    this.activityLogs.length = 0;
+    if (Array.isArray(body?.snapshot?.logs)) {
+      this.activityLogs.push(...body.snapshot.logs);
+    }
+    this.recordLog('system.restore_completed', 'system', `restored ${restoredUsers.length} users`);
+    await this.pusherService.notifyAdmin('Restore completed', {
+      type: 'system.restore_completed',
+      restoredUsers: restoredUsers.length,
+    });
+
+    return {
+      message: 'restore done',
+      restoredUsers: restoredUsers.length,
+    };
   }
 }
